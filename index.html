@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="人物名を登録して部屋に均等にランダム割り振り。タグで同じグループの人を別部屋に配置する制約付き。">
+<meta property="og:title" content="部屋割り振りツール">
+<meta property="og:description" content="人物名を登録して部屋に均等にランダム割り振り。タグで同じグループの人を別部屋に配置する制約付き。">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+<title>部屋割り振りツール</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #f0f2f5; min-height: 100vh; padding: 24px; color: #1a1a2e; }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 1.6rem; margin-bottom: 24px; color: #16213e; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card h2 { font-size: 1rem; margin-bottom: 14px; color: #0f3460; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-start; }
+  .input-row textarea { flex: 1; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; resize: vertical; min-height: 80px; font-family: inherit; line-height: 1.6; }
+  .input-row textarea:focus { border-color: #3b82f6; }
+  button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  button:active { transform: scale(0.97); }
+  .btn-add { background: #3b82f6; color: #fff; }
+  .btn-add:hover { background: #2563eb; }
+  .btn-sm { padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-edit { background: #f59e0b; color: #fff; }
+  .btn-edit:hover { background: #d97706; }
+  .btn-save { background: #10b981; color: #fff; }
+  .btn-save:hover { background: #059669; }
+  .btn-clear { background: #94a3b8; color: #fff; font-size: 0.8rem; padding: 6px 14px; }
+  .btn-clear:hover { background: #64748b; }
+  .btn-assign { background: #10b981; color: #fff; font-size: 1.05rem; padding: 12px 32px; display: block; margin: 0 auto; }
+  .btn-assign:hover { background: #059669; }
+  .btn-copy { background: #6366f1; color: #fff; font-size: 0.85rem; padding: 8px 16px; }
+  .btn-copy:hover { background: #4f46e5; }
+
+  /* Person list table */
+  .person-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .person-table th { text-align: left; font-size: 0.8rem; color: #64748b; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+  .person-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .person-table tr:hover { background: #f8fafc; }
+  .person-name { font-size: 0.93rem; color: #1e293b; }
+  .person-name-input { padding: 4px 8px; border: 1.5px solid #3b82f6; border-radius: 6px; font-size: 0.9rem; width: 100%; font-family: inherit; outline: none; }
+
+  /* Tags */
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin: 1px 2px; cursor: default; color: #fff; }
+  .tag-input-wrap { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .tag-input { padding: 3px 8px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; width: 90px; outline: none; font-family: inherit; }
+  .tag-input:focus { border-color: #3b82f6; }
+  .btn-tag-add { background: #8b5cf6; color: #fff; padding: 3px 8px; font-size: 0.75rem; border-radius: 6px; }
+  .btn-tag-add:hover { background: #7c3aed; }
+  .tag-remove { cursor: pointer; margin-left: 4px; opacity: 0.8; }
+  .tag-remove:hover { opacity: 1; }
+  .td-actions { white-space: nowrap; }
+  .td-actions button { margin-left: 4px; }
+
+  .name-count { font-size: 0.85rem; color: #64748b; margin-top: 10px; }
+  .room-input { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .room-input label { font-size: 0.95rem; white-space: nowrap; }
+  .room-input input { width: 80px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 1rem; text-align: center; outline: none; }
+  .room-input input:focus { border-color: #3b82f6; }
+  .result { background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 20px; margin-top: 12px; min-height: 60px; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7; color: #334155; }
+  .result.has-content { border-color: #10b981; background: #f0fdf4; }
+  .result.has-error { border-color: #ef4444; background: #fef2f2; }
+  .actions-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .tag-legend { margin-top: 10px; font-size: 0.82rem; color: #64748b; }
+  .tag-legend .tag { cursor: default; }
+  .hint { font-size: 0.82rem; color: #94a3b8; margin-top: 4px; }
+  .empty-msg { text-align: center; color: #94a3b8; padding: 16px; font-size: 0.9rem; }
+
+  /* Export / Import */
+  .io-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+  .btn-export { background: #0ea5e9; color: #fff; font-size: 0.82rem; padding: 7px 16px; }
+  .btn-export:hover { background: #0284c7; }
+  .btn-import { background: #8b5cf6; color: #fff; font-size: 0.82rem; padding: 7px 16px; }
+  .btn-import:hover { background: #7c3aed; }
+  .io-hint { font-size: 0.78rem; color: #94a3b8; width: 100%; margin-top: 2px; }
+  .import-mode-select { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 10px 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap: wrap; }
+  .import-mode-select.show { display: flex; }
+  .import-mode-select span { font-size: 0.85rem; color: #334155; }
+  .btn-mode { padding: 6px 14px; font-size: 0.8rem; border-radius: 6px; }
+  .btn-mode-replace { background: #ef4444; color: #fff; }
+  .btn-mode-replace:hover { background: #dc2626; }
+  .btn-mode-merge { background: #10b981; color: #fff; }
+  .btn-mode-merge:hover { background: #059669; }
+  .btn-mode-cancel { background: #94a3b8; color: #fff; }
+  .btn-mode-cancel:hover { background: #64748b; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏠 部屋割り振りツール</h1>
+
+  <div class="card">
+    <h2>人物名の登録</h2>
+    <div class="input-row">
+      <textarea id="nameInput" placeholder="名前を入力（1行に1人、改行で複数登録可）" rows="3"></textarea>
+      <button class="btn-add" onclick="addName()">追加</button>
+    </div>
+    <div id="personListWrap"></div>
+    <div class="actions-row">
+      <span class="name-count" id="nameCount"></span>
+      <button class="btn-clear" onclick="clearAll()">全削除</button>
+    </div>
+    <div class="tag-legend" id="tagLegend"></div>
+    <div class="io-row">
+      <button class="btn-export" onclick="exportJSON()">エクスポート (JSON)</button>
+      <button class="btn-import" onclick="document.getElementById('importFile').click()">インポート (JSON)</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImportFile(event)">
+      <span class="io-hint">人物名とタグをJSONファイルで保存・復元できます</span>
+    </div>
+    <div class="import-mode-select" id="importModeSelect">
+      <span id="importInfo"></span>
+      <button class="btn-mode btn-mode-merge" onclick="executeImport('merge')">追加</button>
+      <button class="btn-mode btn-mode-replace" onclick="executeImport('replace')">置換</button>
+      <button class="btn-mode btn-mode-cancel" onclick="cancelImport()">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>割り振り設定</h2>
+    <div class="room-input">
+      <label for="roomCount">部屋数：</label>
+      <input type="number" id="roomCount" min="1" value="2">
+    </div>
+    <p class="hint">同じタグの人は別々の部屋に割り振られます</p>
+    <div style="text-align:center; margin-top:16px;">
+      <button class="btn-assign" onclick="assign()">🎲 割り振る</button>
+    </div>
+    <div class="result" id="result"></div>
+    <div style="text-align:right; margin-top:8px;">
+      <button class="btn-copy" id="copyBtn" style="display:none;" onclick="copyResult()">📋 コピー</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- Data: array of { name: string, tags: string[] } ---
+  let people = JSON.parse(localStorage.getItem('room_people') || '[]');
+  // Migration from old format
+  if (people.length > 0 && typeof people[0] === 'string') {
+    people = people.map(n => ({ name: n, tags: [] }));
+    save();
+  }
+
+  let editingIndex = -1; // which person is being name-edited
+
+  const TAG_COLORS = [
+    '#8b5cf6','#ec4899','#f59e0b','#06b6d4','#10b981',
+    '#ef4444','#6366f1','#14b8a6','#f97316','#a855f7',
+    '#0ea5e9','#e11d48','#84cc16','#d946ef','#64748b'
+  ];
+  function tagColor(tag) {
+    let h = 0;
+    for (let i = 0; i < tag.length; i++) h = ((h << 5) - h + tag.charCodeAt(i)) | 0;
+    return TAG_COLORS[Math.abs(h) % TAG_COLORS.length];
+  }
+
+  const nameInput = document.getElementById('nameInput');
+  const personListWrap = document.getElementById('personListWrap');
+  const nameCount = document.getElementById('nameCount');
+  const tagLegend = document.getElementById('tagLegend');
+  const resultEl = document.getElementById('result');
+  const copyBtn = document.getElementById('copyBtn');
+
+  function save() { localStorage.setItem('room_people', JSON.stringify(people)); }
+
+  function allTags() {
+    const s = new Set();
+    people.forEach(p => p.tags.forEach(t => s.add(t)));
+    return [...s].sort();
+  }
+
+  function render() {
+    // Person list
+    if (people.length === 0) {
+      personListWrap.innerHTML = '<div class="empty-msg">登録された人物はいません</div>';
+    } else {
+      let html = '<table class="person-table"><thead><tr><th>#</th><th>名前</th><th>タグ</th><th></th></tr></thead><tbody>';
+      people.forEach((p, i) => {
+        html += '<tr>';
+        html += `<td style="color:#94a3b8;font-size:0.8rem;">${i + 1}</td>`;
+        // Name cell
+        if (editingIndex === i) {
+          html += `<td><input class="person-name-input" id="editInput${i}" value="${esc(p.name)}" onkeydown="editKeydown(event,${i})"></td>`;
+        } else {
+          html += `<td class="person-name">${esc(p.name)}</td>`;
+        }
+        // Tags cell
+        html += '<td><div class="tag-input-wrap">';
+        p.tags.forEach((t, ti) => {
+          html += `<span class="tag" style="background:${tagColor(t)}">${esc(t)}<span class="tag-remove" onclick="removeTag(${i},${ti})"> ✕</span></span>`;
+        });
+        html += `<input class="tag-input" id="tagInput${i}" placeholder="タグ追加" onkeydown="tagKeydown(event,${i})">`;
+        html += `<button class="btn-tag-add btn-sm" onclick="addTag(${i})">+</button>`;
+        html += '</div></td>';
+        // Actions cell
+        html += '<td class="td-actions">';
+        if (editingIndex === i) {
+          html += `<button class="btn-save btn-sm" onclick="saveEdit(${i})">保存</button>`;
+        } else {
+          html += `<button class="btn-edit btn-sm" onclick="startEdit(${i})">編集</button>`;
+        }
+        html += `<button class="btn-danger btn-sm" onclick="removePerson(${i})">削除</button>`;
+        html += '</td></tr>';
+      });
+      html += '</tbody></table>';
+      personListWrap.innerHTML = html;
+
+      // Focus edit input if editing
+      if (editingIndex >= 0) {
+        const el = document.getElementById('editInput' + editingIndex);
+        if (el) { el.focus(); el.selectionStart = el.value.length; }
+      }
+    }
+
+    nameCount.textContent = people.length > 0 ? `登録人数: ${people.length}人` : '';
+
+    // Tag legend
+    const tags = allTags();
+    if (tags.length > 0) {
+      tagLegend.innerHTML = '使用中のタグ: ' + tags.map(t =>
+        `<span class="tag" style="background:${tagColor(t)}">${esc(t)}</span>`
+      ).join(' ');
+    } else {
+      tagLegend.innerHTML = '';
+    }
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // --- Add names ---
+  function addName() {
+    const raw = nameInput.value;
+    const newNames = raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    if (newNames.length === 0) return;
+    newNames.forEach(n => people.push({ name: n, tags: [] }));
+    save(); render();
+    nameInput.value = '';
+    nameInput.focus();
+  }
+
+  // --- Edit name ---
+  function startEdit(i) { editingIndex = i; render(); }
+  function saveEdit(i) {
+    const el = document.getElementById('editInput' + i);
+    if (el) {
+      const v = el.value.trim();
+      if (v) people[i].name = v;
+    }
+    editingIndex = -1;
+    save(); render();
+  }
+  function editKeydown(e, i) {
+    if (e.key === 'Enter') { e.preventDefault(); saveEdit(i); }
+    if (e.key === 'Escape') { editingIndex = -1; render(); }
+  }
+
+  // --- Tags ---
+  function addTag(i) {
+    const el = document.getElementById('tagInput' + i);
+    if (!el) return;
+    const v = el.value.trim();
+    if (!v) return;
+    if (!people[i].tags.includes(v)) {
+      people[i].tags.push(v);
+      save(); render();
+    } else {
+      el.value = '';
+    }
+  }
+  function tagKeydown(e, i) {
+    if (e.key === 'Enter') { e.preventDefault(); addTag(i); }
+  }
+  function removeTag(pi, ti) {
+    people[pi].tags.splice(ti, 1);
+    save(); render();
+  }
+
+  // --- Remove / Clear ---
+  function removePerson(i) { people.splice(i, 1); editingIndex = -1; save(); render(); }
+  function clearAll() {
+    if (people.length === 0) return;
+    if (!confirm('全員削除しますか？')) return;
+    people = []; editingIndex = -1;
+    save(); render();
+    resultEl.textContent = ''; resultEl.className = 'result';
+    copyBtn.style.display = 'none';
+  }
+
+  // --- Shuffle ---
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // --- Assignment with tag constraints ---
+  function assign() {
+    const roomCount = parseInt(document.getElementById('roomCount').value);
+    if (!roomCount || roomCount < 1) { alert('部屋数は1以上にしてください'); return; }
+    if (people.length === 0) { alert('人物名を登録してください'); return; }
+    if (roomCount > people.length) { alert(`部屋数（${roomCount}）が人数（${people.length}）より多いです`); return; }
+
+    // Check feasibility: each tag group must fit across rooms
+    const tagGroups = {};
+    people.forEach(p => p.tags.forEach(t => {
+      if (!tagGroups[t]) tagGroups[t] = [];
+      tagGroups[t].push(p.name);
+    }));
+    for (const [tag, members] of Object.entries(tagGroups)) {
+      if (members.length > roomCount) {
+        resultEl.textContent = `⚠ タグ「${tag}」のメンバーが${members.length}人いますが、部屋数が${roomCount}しかないため、全員を別々の部屋にできません。\n部屋数を${members.length}以上にするか、タグを調整してください。`;
+        resultEl.className = 'result has-error';
+        copyBtn.style.display = 'none';
+        return;
+      }
+    }
+
+    // Try assignment with backtracking (retry with different shuffles)
+    let bestRooms = null;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const shuffled = shuffle([...Array(people.length).keys()]);
+      const rooms = Array.from({ length: roomCount }, () => []);
+      const roomTagSets = Array.from({ length: roomCount }, () => new Set());
+      let ok = true;
+
+      for (const idx of shuffled) {
+        const person = people[idx];
+        // Find eligible rooms (no tag conflict), prefer smallest room
+        const eligible = [];
+        for (let r = 0; r < roomCount; r++) {
+          const conflict = person.tags.some(t => roomTagSets[r].has(t));
+          if (!conflict) eligible.push(r);
+        }
+        if (eligible.length === 0) { ok = false; break; }
+        // Pick room with fewest members (for balance)
+        eligible.sort((a, b) => rooms[a].length - rooms[b].length);
+        const chosen = eligible[0];
+        rooms[chosen].push(person);
+        person.tags.forEach(t => roomTagSets[chosen].add(t));
+      }
+      if (ok) { bestRooms = rooms; break; }
+    }
+
+    if (!bestRooms) {
+      resultEl.textContent = '⚠ タグの制約を満たしつつ均等に割り振ることができませんでした。\n部屋数を増やすか、タグの設定を見直してください。';
+      resultEl.className = 'result has-error';
+      copyBtn.style.display = 'none';
+      return;
+    }
+
+    let text = '';
+    bestRooms.forEach((members, i) => {
+      text += `【部屋${i + 1}】（${members.length}人）\n`;
+      text += members.map(m => {
+        const tagStr = m.tags.length > 0 ? `  [${m.tags.join(', ')}]` : '';
+        return `  ・${m.name}${tagStr}`;
+      }).join('\n') + '\n\n';
+    });
+
+    resultEl.textContent = text.trim();
+    resultEl.className = 'result has-content';
+    copyBtn.style.display = 'inline-block';
+  }
+
+  // --- Export / Import ---
+  function exportJSON() {
+    if (people.length === 0) { alert('エクスポートするデータがありません'); return; }
+    const data = { version: 1, exportedAt: new Date().toISOString(), people: people };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const d = new Date();
+    a.download = `room-members-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  let pendingImportData = null;
+
+  function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const raw = JSON.parse(e.target.result);
+        let imported;
+        if (Array.isArray(raw)) {
+          // Accept raw array format too
+          imported = raw.map(item => {
+            if (typeof item === 'string') return { name: item, tags: [] };
+            if (item && typeof item.name === 'string') return { name: item.name, tags: Array.isArray(item.tags) ? item.tags : [] };
+            return null;
+          }).filter(Boolean);
+        } else if (raw.people && Array.isArray(raw.people)) {
+          imported = raw.people.map(item => {
+            if (typeof item === 'string') return { name: item, tags: [] };
+            if (item && typeof item.name === 'string') return { name: item.name, tags: Array.isArray(item.tags) ? item.tags : [] };
+            return null;
+          }).filter(Boolean);
+        } else {
+          alert('無効なファイル形式です'); return;
+        }
+        if (imported.length === 0) { alert('インポートできるデータがありません'); return; }
+
+        pendingImportData = imported;
+        const tagCount = new Set(imported.flatMap(p => p.tags)).size;
+        document.getElementById('importInfo').textContent =
+          `${imported.length}人（タグ${tagCount}種）を読み込みました。既存データに追加しますか、置き換えますか？`;
+        document.getElementById('importModeSelect').classList.add('show');
+      } catch (err) {
+        alert('JSONの読み込みに失敗しました:\n' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  function executeImport(mode) {
+    if (!pendingImportData) return;
+    if (mode === 'replace') {
+      people = pendingImportData;
+    } else {
+      people.push(...pendingImportData);
+    }
+    pendingImportData = null;
+    document.getElementById('importModeSelect').classList.remove('show');
+    save(); render();
+  }
+
+  function cancelImport() {
+    pendingImportData = null;
+    document.getElementById('importModeSelect').classList.remove('show');
+  }
+
+  function copyResult() {
+    navigator.clipboard.writeText(resultEl.textContent).then(() => {
+      copyBtn.textContent = '✅ コピーしました';
+      setTimeout(() => { copyBtn.textContent = '📋 コピー'; }, 1500);
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>
