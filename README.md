@@ -2,6 +2,8 @@
 
 人物名を登録して、指定した部屋数にランダムで均等に割り振るWebツールです。
 
+<img width="720" height="995" alt="スクリーンショット" src="https://github.com/user-attachments/assets/b4b89fc5-86dc-43b8-9a06-484d25f189b6" />
+
 ## 機能
 
 - **人物登録**: 改行区切りで複数人を一括登録、名前の編集・削除
