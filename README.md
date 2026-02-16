@@ -18,7 +18,7 @@
 
 ## デモ
 
-GitHub Pages: `https://<username>.github.io/room-assignment/`
+GitHub Pages: `https://tanitaka-tech.github.io/room-assignment-app/`
 
 ## 技術スタック
 
